@@ -1,9 +1,10 @@
-name: Build Smarty for Android 10+
+name: Build Smarty Android 10
 on: [push, workflow_dispatch]
 
 jobs:
   build:
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -14,12 +15,17 @@ jobs:
           java-version: '8'
           distribution: 'zulu'
 
-      - name: Patch for Android 10+
+      - name: Patch Project for Modern Android
         run: |
-          # This forces the app to target Android 10 (API 29) 
-          # but keeps the 32-bit architecture intact.
+          # 1. Fix the dead links that cause the timeout
+          sed -i 's/jcenter()/google()\n        mavenCentral()/g' build.gradle
+          sed -i 's/jcenter()/google()\n        mavenCentral()/g' app/build.gradle || true
+          
+          # 2. Set target to Android 10 (API 29) to fix the "Not Compatible" error
           find . -name "build.gradle" -exec sed -i 's/targetSdkVersion [0-9]*/targetSdkVersion 29/g' {} +
-          find . -name "build.gradle" -exec sed -i 's/compileSdkVersion [0-9]*/compileSdkVersion 29/g' {} +
+          
+          # 3. Add a legacy library fix for Android 10
+          echo "android.useAndroidX=false" >> gradle.properties
 
       - name: Build APK
         run: |
@@ -27,8 +33,8 @@ jobs:
           ./gradlew assembleDebug --no-daemon
 
       - name: Upload APK
+        if: success()
         uses: actions/upload-artifact@v4
         with:
-          name: smarty-android10-32bit
+          name: smarty-32bit-android10
           path: "**/build/outputs/apk/**/*.apk"
-
