@@ -4,7 +4,6 @@ on: [push, workflow_dispatch]
 jobs:
   build:
     runs-on: ubuntu-latest
-    timeout-minutes: 10
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -15,17 +14,14 @@ jobs:
           java-version: '8'
           distribution: 'zulu'
 
-      - name: Patch Project for Modern Android
+      - name: Inject Legacy Support
         run: |
-          # 1. Fix the dead links that cause the timeout
-          sed -i 's/jcenter()/google()\n        mavenCentral()/g' build.gradle
-          sed -i 's/jcenter()/google()\n        mavenCentral()/g' app/build.gradle || true
-          
-          # 2. Set target to Android 10 (API 29) to fix the "Not Compatible" error
+          # 1. Update SDK targets to Android 10
           find . -name "build.gradle" -exec sed -i 's/targetSdkVersion [0-9]*/targetSdkVersion 29/g' {} +
           
-          # 3. Add a legacy library fix for Android 10
-          echo "android.useAndroidX=false" >> gradle.properties
+          # 2. THIS IS THE KEY: Inject the legacy library requirement into the Manifest
+          # This tells Android 10 to provide the old libraries the app needs to run.
+          sed -i '/<application/a \        <uses-library android:name="org.apache.http.legacy" android:required="false" />' app/src/main/AndroidManifest.xml
 
       - name: Build APK
         run: |
@@ -33,8 +29,7 @@ jobs:
           ./gradlew assembleDebug --no-daemon
 
       - name: Upload APK
-        if: success()
         uses: actions/upload-artifact@v4
         with:
-          name: smarty-32bit-android10
+          name: smarty-working-32bit
           path: "**/build/outputs/apk/**/*.apk"
