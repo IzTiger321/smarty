@@ -4,7 +4,6 @@ on: [push, workflow_dispatch]
 jobs:
   build:
     runs-on: ubuntu-latest
-    timeout-minutes: 15
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -15,26 +14,25 @@ jobs:
           java-version: '8'
           distribution: 'zulu'
 
-      - name: Patch Repositories & Manifest
+      - name: Patch for Legacy Gradle
         run: |
-          # 1. Replace dead jcenter links with working ones to stop the timeout
-          find . -name "*.gradle" -exec sed -i 's/jcenter()/google()\n        mavenCentral()/g' {} +
+          # 1. Use the manual URL because 'google()' didn't exist in 2016 Gradle
+          find . -name "*.gradle" -exec sed -i "s|jcenter()|maven { url 'https://maven.google.com' }\n        mavenCentral()|g" {} +
           
-          # 2. Update target for Android 10+
+          # 2. Fix the Android 10 compatibility
           find . -name "build.gradle" -exec sed -i 's/targetSdkVersion [0-9]*/targetSdkVersion 29/g' {} +
           
-          # 3. Inject the Legacy library needed for Android 10 to actually run the app
+          # 3. Inject the library fix for the Android 10 crash
           find . -name "AndroidManifest.xml" -exec sed -i '/<application/a \        <uses-library android:name="org.apache.http.legacy" android:required="false" />' {} +
 
       - name: Build APK
         run: |
           chmod +x gradlew
-          # --no-daemon and --stacktrace help us see exactly what's happening
-          ./gradlew assembleDebug --no-daemon --stacktrace
+          ./gradlew assembleDebug --no-daemon
 
       - name: Upload APK
         if: success()
         uses: actions/upload-artifact@v4
         with:
-          name: smarty-working-32bit
+          name: smarty-32bit-android10
           path: "**/build/outputs/apk/**/*.apk"
