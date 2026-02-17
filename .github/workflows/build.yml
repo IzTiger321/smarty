@@ -31,3 +31,4 @@ jobs:
         with:
           name: smarty-android10-32bit
           path: "**/build/outputs/apk/**/*.apk"
+
