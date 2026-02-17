@@ -14,16 +14,17 @@ jobs:
           java-version: '8'
           distribution: 'zulu'
 
-      - name: Patch for Legacy Gradle
+      - name: Deep Patch for Legacy Environment
         run: |
-          # 1. Use the manual URL because 'google()' didn't exist in 2016 Gradle
-          find . -name "*.gradle" -exec sed -i "s|jcenter()|maven { url 'https://maven.google.com' }\n        mavenCentral()|g" {} +
+          # 1. Force the old-style Google Maven URL in ALL gradle files
+          # Using "find ." ensures it looks inside /app and all subfolders
+          find . -name "*.gradle" -type f -exec sed -i "s|jcenter()|maven { url 'https://maven.google.com' }\n        mavenCentral()|g" {} +
           
-          # 2. Fix the Android 10 compatibility
-          find . -name "build.gradle" -exec sed -i 's/targetSdkVersion [0-9]*/targetSdkVersion 29/g' {} +
+          # 2. Force Target SDK 29 (Android 10) everywhere
+          find . -name "*.gradle" -type f -exec sed -i 's/targetSdkVersion [0-9]*/targetSdkVersion 29/g' {} +
           
-          # 3. Inject the library fix for the Android 10 crash
-          find . -name "AndroidManifest.xml" -exec sed -i '/<application/a \        <uses-library android:name="org.apache.http.legacy" android:required="false" />' {} +
+          # 3. Inject the Legacy Apache library into the Manifest so the app doesn't crash on start
+          find . -name "AndroidManifest.xml" -type f -exec sed -i '/<application/a \        <uses-library android:name="org.apache.http.legacy" android:required="false" />' {} +
 
       - name: Build APK
         run: |
