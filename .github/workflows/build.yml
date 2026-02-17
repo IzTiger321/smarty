@@ -1,4 +1,4 @@
-name: Build Smarty 32bit
+name: Build Smarty for Android 10+
 on: [push, workflow_dispatch]
 
 jobs:
@@ -14,14 +14,20 @@ jobs:
           java-version: '8'
           distribution: 'zulu'
 
-      - name: Build with Gradle
+      - name: Patch for Android 10+
+        run: |
+          # This forces the app to target Android 10 (API 29) 
+          # but keeps the 32-bit architecture intact.
+          find . -name "build.gradle" -exec sed -i 's/targetSdkVersion [0-9]*/targetSdkVersion 29/g' {} +
+          find . -name "build.gradle" -exec sed -i 's/compileSdkVersion [0-9]*/compileSdkVersion 29/g' {} +
+
+      - name: Build APK
         run: |
           chmod +x gradlew
-          # This command tells Gradle to ignore minor errors and just build
-          ./gradlew assembleDebug --no-daemon -x test
-          
+          ./gradlew assembleDebug --no-daemon
+
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
-          name: smarty-32bit-apk
-          path: "**/build/outputs/apk/debug/*.apk"
+          name: smarty-android10-32bit
+          path: "**/build/outputs/apk/**/*.apk"
