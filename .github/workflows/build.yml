@@ -4,6 +4,7 @@ on: [push, workflow_dispatch]
 jobs:
   build:
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -14,21 +15,25 @@ jobs:
           java-version: '8'
           distribution: 'zulu'
 
-      - name: Inject Legacy Support
+      - name: Patch Repositories & Manifest
         run: |
-          # 1. Update SDK targets to Android 10 (API 29)
+          # 1. Replace dead jcenter links with working ones to stop the timeout
+          find . -name "*.gradle" -exec sed -i 's/jcenter()/google()\n        mavenCentral()/g' {} +
+          
+          # 2. Update target for Android 10+
           find . -name "build.gradle" -exec sed -i 's/targetSdkVersion [0-9]*/targetSdkVersion 29/g' {} +
           
-          # 2. Find the AndroidManifest.xml and inject the Apache Legacy library
-          # This command looks for the file and inserts the required line for Android 10
+          # 3. Inject the Legacy library needed for Android 10 to actually run the app
           find . -name "AndroidManifest.xml" -exec sed -i '/<application/a \        <uses-library android:name="org.apache.http.legacy" android:required="false" />' {} +
 
       - name: Build APK
         run: |
           chmod +x gradlew
-          ./gradlew assembleDebug --no-daemon
+          # --no-daemon and --stacktrace help us see exactly what's happening
+          ./gradlew assembleDebug --no-daemon --stacktrace
 
       - name: Upload APK
+        if: success()
         uses: actions/upload-artifact@v4
         with:
           name: smarty-working-32bit
