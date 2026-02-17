@@ -16,12 +16,12 @@ jobs:
 
       - name: Inject Legacy Support
         run: |
-          # 1. Update SDK targets to Android 10
+          # 1. Update SDK targets to Android 10 (API 29)
           find . -name "build.gradle" -exec sed -i 's/targetSdkVersion [0-9]*/targetSdkVersion 29/g' {} +
           
-          # 2. THIS IS THE KEY: Inject the legacy library requirement into the Manifest
-          # This tells Android 10 to provide the old libraries the app needs to run.
-          sed -i '/<application/a \        <uses-library android:name="org.apache.http.legacy" android:required="false" />' app/src/main/AndroidManifest.xml
+          # 2. Find the AndroidManifest.xml and inject the Apache Legacy library
+          # This command looks for the file and inserts the required line for Android 10
+          find . -name "AndroidManifest.xml" -exec sed -i '/<application/a \        <uses-library android:name="org.apache.http.legacy" android:required="false" />' {} +
 
       - name: Build APK
         run: |
